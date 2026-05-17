@@ -11,3 +11,6 @@ venv/
 .vscode/
 *.swp
 node_modules/
+
+# Demo media and promotional artifacts (host externally, not in repo)
+artifacts/

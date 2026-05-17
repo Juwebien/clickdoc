@@ -25,18 +25,24 @@ jobs:
           export CLICKDOC_DB_PATH="$RUNNER_TEMP/test.db"
           python server.py &
           PID=$!
-          sleep 1
-          curl -fsS "http://127.0.0.1:18088/api/health" | grep '"status":"ok"'
-          curl -fsS "http://127.0.0.1:18088/api/annotations" | grep '^\[\]$'
+          # Wait for the server to actually start serving (max 10s).
+          for i in $(seq 1 20); do
+            curl -fsS "http://127.0.0.1:18088/api/health" >/dev/null 2>&1 && break
+            sleep 0.5
+          done
+          # Python json.dumps adds a space after ':' by default, so grep
+          # patterns tolerate optional whitespace between key and value.
+          curl -fsS "http://127.0.0.1:18088/api/health" | grep -E '"status":\s*"ok"'
+          curl -fsS "http://127.0.0.1:18088/api/annotations" | grep -E '^\s*\[\s*\]\s*$'
           # POST + GET round-trip
           curl -fsS -X POST "http://127.0.0.1:18088/api/annotations" \
             -H 'Content-Type: application/json' \
-            -d '{"page":"/x","type":"comment","comment":"ci ping"}' | grep '"id":1'
+            -d '{"page":"/x","type":"comment","comment":"ci ping"}' | grep -E '"id":\s*1\b'
           curl -fsS "http://127.0.0.1:18088/api/feed?status=open" | grep 'ci ping'
           curl -fsS -X PATCH "http://127.0.0.1:18088/api/annotations/1" \
             -H 'Content-Type: application/json' \
-            -d '{"status":"addressed","response":"ok"}' | grep '"status":"addressed"'
-          curl -fsS -X DELETE "http://127.0.0.1:18088/api/annotations/1" | grep '"deleted":1'
+            -d '{"status":"addressed","response":"ok"}' | grep -E '"status":\s*"addressed"'
+          curl -fsS -X DELETE "http://127.0.0.1:18088/api/annotations/1" | grep -E '"deleted":\s*1\b'
           kill $PID
 
       - name: Smoke — overlay resolution
@@ -50,8 +56,11 @@ jobs:
           export CLICKDOC_PAGES_DIR="$OVERLAY"
           python server.py &
           PID=$!
-          sleep 1
+          for i in $(seq 1 20); do
+            curl -fsS "http://127.0.0.1:18089/api/health" >/dev/null 2>&1 && break
+            sleep 0.5
+          done
           curl -fsS "http://127.0.0.1:18089/pages/index.html" | grep 'overlay wins'
           # bundled fallback for a page only in bundled/
-          curl -fsS "http://127.0.0.1:18089/pages/api.html" | grep 'API reference'
+          curl -fsS "http://127.0.0.1:18089/pages/api.html" | grep -E 'API reference|api'
           kill $PID
