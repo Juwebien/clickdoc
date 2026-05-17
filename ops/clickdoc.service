@@ -1,0 +1,46 @@
+# clickdoc — systemd user service.
+#
+# Install path:
+#     ~/.config/systemd/user/clickdoc.service
+#
+# Then:
+#     systemctl --user daemon-reload
+#     systemctl --user enable --now clickdoc.service
+#
+# Use the `install.sh` script in the repo root for an automated install
+# that substitutes %h/clickdoc with the actual clone path you choose.
+
+[Unit]
+Description=clickdoc · live documentation with annotations
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Edit WorkingDirectory to point at your clickdoc clone, OR keep it here
+# and override CLICKDOC_PAGES_DIR to an absolute folder of your own pages.
+WorkingDirectory=%h/clickdoc
+ExecStart=/usr/bin/python3 server.py
+Restart=always
+RestartSec=3
+
+# Bind to all interfaces by default. Change to 127.0.0.1 for local-only.
+Environment=CLICKDOC_LISTEN_HOST=0.0.0.0
+Environment=CLICKDOC_LISTEN_PORT=8088
+
+# Per-host overlay. Unset = serve the bundled pages/ from the repo.
+# Set this to your project's docs folder to make clickdoc render your
+# pages with no copy step.
+#Environment=CLICKDOC_PAGES_DIR=%h/my-project/docs/pages
+#Environment=CLICKDOC_STATIC_DIR=%h/my-project/docs/static
+
+# Default author tag on every new annotation. Pick something short.
+Environment=CLICKDOC_AUTHOR=anon
+
+# Light hardening — most Protect*/Private* directives require CAP_SYS_ADMIN
+# and don't apply to user-mode units (they cause exit code 218 CAPABILITIES).
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

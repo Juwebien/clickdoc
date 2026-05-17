@@ -1,0 +1,27 @@
+# Caddyfile · expose clickdoc behind a TLS reverse proxy.
+#
+# Replace docs.example.com with your hostname. Caddy will fetch a
+# Let's Encrypt cert automatically on first request (needs port 80/443
+# reachable from the public Internet, or use the DNS challenge).
+#
+#     sudo cp clickdoc-caddyfile /etc/caddy/Caddyfile
+#     sudo systemctl reload caddy
+
+docs.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8088
+
+    @api path /api/*
+    handle @api {
+        # Tighten CORS if you serve the UI from a different origin.
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, OPTIONS"
+        header Access-Control-Allow-Headers "Content-Type"
+        reverse_proxy 127.0.0.1:8088
+    }
+
+    log {
+        output file /var/log/caddy/clickdoc.log
+        format console
+    }
+}

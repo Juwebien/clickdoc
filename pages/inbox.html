@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>clickdoc · Inbox</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+.inbox-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0 18px; }
+.inbox-toolbar select, .inbox-toolbar input, .inbox-toolbar button {
+  background: var(--bg-code); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 10px; font: inherit; font-size: 13px;
+}
+.inbox-toolbar .stat { margin-left: auto; color: var(--fg-mute); font-size: 12px; }
+.inbox-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
+.inbox-item.addressed { border-color: rgba(88, 232, 146, 0.3); }
+.inbox-item .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.inbox-item .id { color: var(--fg-mute); font-size: 12px; }
+.inbox-item .type { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.inbox-item .type.comment   { background: rgba(97,218,251,0.10); color: var(--accent); border: 1px solid rgba(97,218,251,0.3); }
+.inbox-item .type.spec      { background: rgba(181,140,249,0.10); color: var(--violet); border: 1px solid rgba(181,140,249,0.3); }
+.inbox-item .type.precision { background: rgba(246,193,119,0.10); color: var(--amber); border: 1px solid rgba(246,193,119,0.3); }
+.inbox-item .status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.inbox-item .status.open      { background: rgba(246,193,119,0.10); color: var(--amber); border: 1px solid rgba(246,193,119,0.3); }
+.inbox-item .status.addressed { background: rgba(88,232,146,0.10); color: var(--green); border: 1px solid rgba(88,232,146,0.3); }
+.inbox-item .page { font-family: inherit; font-size: 12px; color: var(--fg-mute); }
+.inbox-item .excerpt { font-size: 12px; color: var(--fg-mute); background: var(--bg-code); border-left: 2px solid var(--accent); padding: 6px 10px; border-radius: 0 6px 6px 0; margin: 8px 0; max-height: 80px; overflow: auto; white-space: pre-wrap; }
+.inbox-item .body { color: var(--fg); font-size: 13.5px; line-height: 1.55; margin: 6px 0; white-space: pre-wrap; }
+.inbox-item .response { color: var(--green); border-left: 2px solid var(--green); padding-left: 8px; margin-top: 8px; font-size: 13px; white-space: pre-wrap; }
+.inbox-item .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.inbox-item .actions button, .inbox-item .actions a { background: var(--bg-code); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+.inbox-item .actions a:hover { color: var(--accent); border-color: var(--accent); }
+.inbox-empty { color: var(--fg-mute); text-align: center; padding: 30px 0; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" id="toc">
+  <div class="group">Pages</div>
+  <a href="/pages/index.html">Welcome</a>
+  <a href="/pages/authoring.html">Author a page</a>
+  <a href="/pages/api.html">API reference</a>
+  <a href="/pages/inbox.html">Inbox</a>
+  <div class="group">Actions</div>
+  <a href="/api/feed?status=open" target="_blank">Feed (open)</a>
+  <a href="/api/feed" target="_blank">Feed (all)</a>
+  <a href="/api/annotations" target="_blank">JSON</a>
+</nav>
+
+<main>
+<div class="menu-toggle"><button>☰ Menu</button></div>
+
+<header class="page">
+  <div class="eyebrow">clickdoc · Inbox</div>
+  <h1 data-anchor="title">All annotations, one view</h1>
+  <div class="sub" data-anchor="subtitle">Filter by status, type, or page. AI agents read <code>/api/feed</code> for the same data in plain text and PATCH the status to <em>addressed</em> when they act on a remark.</div>
+</header>
+
+<section id="inbox">
+<div class="inbox-toolbar">
+  <label>Status
+    <select id="filter-status">
+      <option value="">all</option>
+      <option value="open" selected>open</option>
+      <option value="addressed">addressed</option>
+    </select>
+  </label>
+  <label>Type
+    <select id="filter-type">
+      <option value="">all</option>
+      <option value="comment">comment</option>
+      <option value="spec">spec</option>
+      <option value="precision">precision</option>
+    </select>
+  </label>
+  <label>Page
+    <select id="filter-page"><option value="">all</option></select>
+  </label>
+  <button id="refresh">↻ Refresh</button>
+  <span class="stat" id="counts"></span>
+</div>
+<div id="inbox-list"></div>
+</section>
+
+<footer class="page">clickdoc · MIT</footer>
+</main></div>
+
+<script src="/static/nav.js"></script>
+<script>
+(function () {
+  const list = document.getElementById('inbox-list');
+  const fStatus = document.getElementById('filter-status');
+  const fType = document.getElementById('filter-type');
+  const fPage = document.getElementById('filter-page');
+  const counts = document.getElementById('counts');
+  document.getElementById('refresh').addEventListener('click', load);
+  [fStatus, fType, fPage].forEach(el => el.addEventListener('change', render));
+
+  let all = [];
+  function escapeHTML(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  async function load() {
+    const r = await fetch('/api/annotations');
+    all = r.ok ? await r.json() : [];
+    const pages = Array.from(new Set(all.map(a => a.page))).sort();
+    const cur = fPage.value;
+    fPage.innerHTML = '<option value="">all</option>' +
+      pages.map(p => `<option value="${escapeHTML(p)}" ${p === cur ? 'selected' : ''}>${escapeHTML(p)}</option>`).join('');
+    render();
+  }
+
+  function render() {
+    const s = fStatus.value, t = fType.value, p = fPage.value;
+    const view = all.filter(a => (!s || a.status === s) && (!t || a.type === t) && (!p || a.page === p));
+    counts.textContent = `${view.length} / ${all.length} · open=${all.filter(a => a.status === 'open').length}`;
+    if (!view.length) {
+      list.innerHTML = '<div class="inbox-empty">Nothing here. Click anywhere on the other pages to leave a remark.</div>';
+      return;
+    }
+    list.innerHTML = view.map(renderItem).join('');
+    list.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', () => onAction(b)));
+  }
+
+  function renderItem(a) {
+    const status = a.status === 'addressed' ? 'addressed' : 'open';
+    return `
+      <div class="inbox-item ${status}" data-id="${a.id}">
+        <div class="head">
+          <span class="id">#${a.id}</span>
+          <span class="type ${escapeHTML(a.type)}">${escapeHTML(a.type)}</span>
+          <span class="status ${status}">${status}</span>
+          <span class="page">${escapeHTML(a.page)}${a.anchor ? ' · #' + escapeHTML(a.anchor) : ''}</span>
+          <span class="page" style="margin-left:auto">${escapeHTML(a.created_at)}</span>
+        </div>
+        ${a.line_excerpt ? `<div class="excerpt">${escapeHTML(a.line_excerpt.slice(0,400))}</div>` : ''}
+        <div class="body">${escapeHTML(a.comment)}</div>
+        ${a.response ? `<div class="response">↳ ${escapeHTML(a.response)}</div>` : ''}
+        <div class="actions">
+          ${a.anchor ? `<a href="${escapeHTML(a.page)}#${escapeHTML(a.anchor)}">↗ Open anchor</a>` : `<a href="${escapeHTML(a.page)}">↗ Open page</a>`}
+          ${status === 'open' ? '<button data-action="addressed">Mark addressed</button>' : '<button data-action="open">Reopen</button>'}
+          <button data-action="delete">Delete</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function onAction(btn) {
+    const item = btn.closest('.inbox-item');
+    const id = item.dataset.id;
+    const action = btn.dataset.action;
+    if (action === 'delete') {
+      if (!confirm('Delete #' + id + '?')) return;
+      await fetch('/api/annotations/' + id, { method: 'DELETE' });
+    } else {
+      await fetch('/api/annotations/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: action })
+      });
+    }
+    await load();
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>

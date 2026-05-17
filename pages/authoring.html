@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>clickdoc · authoring</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" id="toc">
+  <div class="group">Pages</div>
+  <a href="/pages/index.html">Welcome</a>
+  <a href="/pages/authoring.html">Author a page</a>
+  <a href="/pages/api.html">API reference</a>
+  <a href="/pages/inbox.html">Inbox</a>
+  <div class="group">On this page</div>
+  <a href="#shell">The shared shell</a>
+  <a href="#anchors">Anchors</a>
+  <a href="#components">Style components</a>
+  <a href="#overlay">Overlaying content</a>
+</nav>
+
+<main>
+<div class="menu-toggle"><button>☰ Menu</button></div>
+
+<header class="page">
+  <div class="eyebrow">clickdoc · authoring guide</div>
+  <h1 data-anchor="auth-title">Write an annotation-friendly page</h1>
+  <div class="sub" data-anchor="auth-sub">Every page is plain HTML. The annotation overlay attaches to elements that carry <code>data-anchor</code>. There is no framework lock-in.</div>
+</header>
+
+<section id="shell" data-anchor="shell">
+<h2><span class="num">1</span>The shared shell</h2>
+<p>Every page is an independent HTML file. The bits that make it part of <em>clickdoc</em> are:</p>
+
+<pre data-anchor="shell-skel">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+  &lt;title&gt;Your page · clickdoc&lt;/title&gt;
+  &lt;link rel="stylesheet" href="/static/style.css"&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class="layout"&gt;
+    &lt;nav class="toc" id="toc"&gt;
+      &lt;div class="group"&gt;Pages&lt;/div&gt;
+      &lt;a href="/pages/index.html"&gt;Index&lt;/a&gt;
+      &lt;a href="/pages/inbox.html"&gt;Inbox&lt;/a&gt;
+    &lt;/nav&gt;
+    &lt;main&gt;
+      &lt;div class="menu-toggle"&gt;&lt;button&gt;☰ Menu&lt;/button&gt;&lt;/div&gt;
+      &lt;header class="page"&gt;
+        &lt;h1 data-anchor="title"&gt;Your page&lt;/h1&gt;
+      &lt;/header&gt;
+
+      &lt;!-- your content here --&gt;
+
+    &lt;/main&gt;
+  &lt;/div&gt;
+  &lt;script src="/static/nav.js"&gt;&lt;/script&gt;
+  &lt;script src="/static/annotate.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+
+<p data-anchor="shell-rule"><b>Rule of thumb.</b> Keep the <code>nav.toc</code> identical across pages so the navigation feels stable. Change only the <em>"On this page"</em> group with anchors to your section IDs.</p>
+</section>
+
+<section id="anchors" data-anchor="anchors">
+<h2><span class="num">2</span>Anchors</h2>
+<p>The annotation overlay attaches a click handler to every <code>[data-anchor]</code> element. The attribute value should be short and unique within the page. Two patterns work well:</p>
+
+<div class="card" data-anchor="anc-block">
+<h3>Block-level anchor</h3>
+<p>Tag a whole paragraph, card, or row. The full text becomes the excerpt.</p>
+<pre>&lt;p data-anchor="hero-tagline"&gt;Your stateless agent platform.&lt;/p&gt;
+&lt;tr data-anchor="cap-virtio"&gt;&lt;td&gt;&lt;code&gt;hermes-home&lt;/code&gt;&lt;/td&gt;&lt;td&gt;...&lt;/td&gt;&lt;/tr&gt;</pre>
+</div>
+
+<div class="card" data-anchor="anc-snippet">
+<h3>Snippet-level anchor</h3>
+<p>Wrap a particular line in a code block when you want comments to target it specifically.</p>
+<pre>&lt;pre&gt;
+foo = 1
+&lt;span data-anchor="bar-line"&gt;bar = 2  &lt;span class="warn"&gt;# fix me&lt;/span&gt;&lt;/span&gt;
+baz = 3
+&lt;/pre&gt;</pre>
+</div>
+
+<p data-anchor="anc-id-tip"><b>Stability tip.</b> Anchor ids should describe <em>meaning</em>, not position. <code>data-anchor="step-3"</code> is fragile (you might insert a step 2.5 later). <code>data-anchor="iam-fallback"</code> survives reordering.</p>
+</section>
+
+<section id="components" data-anchor="components">
+<h2><span class="num">3</span>Style components</h2>
+<p>The shipped CSS gives you a small set of components. Use them; don't bring your own.</p>
+
+<h3>Cards</h3>
+<pre>&lt;div class="card" data-anchor="card-x"&gt;
+  &lt;h3&gt;Title&lt;/h3&gt;
+  &lt;p&gt;Body...&lt;/p&gt;
+&lt;/div&gt;</pre>
+
+<h3>Callouts</h3>
+<pre>&lt;div class="callout"&gt;&lt;strong&gt;Note.&lt;/strong&gt; A neutral pointer.&lt;/div&gt;
+&lt;div class="callout warn"&gt;&lt;strong&gt;Heads up.&lt;/strong&gt; Be careful.&lt;/div&gt;
+&lt;div class="callout red"&gt;&lt;strong&gt;Hard rule.&lt;/strong&gt; Don't.&lt;/div&gt;</pre>
+
+<h3>Key-value blocks</h3>
+<pre>&lt;div class="kv"&gt;
+  &lt;div class="k"&gt;Field&lt;/div&gt;&lt;div class="v"&gt;Value&lt;/div&gt;
+&lt;/div&gt;</pre>
+
+<h3>Step flow</h3>
+<pre>&lt;div class="flow"&gt;
+  &lt;div class="step"&gt;&lt;span class="num"&gt;1&lt;/span&gt;&lt;span class="text"&gt;Do this&lt;/span&gt;&lt;/div&gt;
+&lt;/div&gt;</pre>
+
+<h3>Filesystem tree</h3>
+<pre>&lt;div class="fs-tree"&gt;
+/path/                    &lt;span class="note"&gt;← note&lt;/span&gt;
+├── &lt;span class="dir"&gt;sub/&lt;/span&gt;
+└── &lt;span class="file"&gt;file.ext&lt;/span&gt;
+&lt;/div&gt;</pre>
+
+<h3>Metrics grid</h3>
+<pre>&lt;div class="metric-grid"&gt;
+  &lt;div class="metric"&gt;&lt;div class="label"&gt;Tests&lt;/div&gt;&lt;div class="value green"&gt;286&lt;/div&gt;&lt;/div&gt;
+&lt;/div&gt;</pre>
+</section>
+
+<section id="overlay" data-anchor="overlay">
+<h2><span class="num">4</span>Overlaying your content</h2>
+<p>The bundled <code>pages/</code> folder is the framework's own welcome screen. To swap in your project:</p>
+
+<pre data-anchor="ov-env"><span class="cmd">$</span> CLICKDOC_PAGES_DIR=$HOME/my-docs/pages python3 server.py</pre>
+
+<p>The overlay is checked <b>first</b> for every path under <code>/pages/</code>. If your overlay has <code>index.html</code>, it replaces the welcome. If it doesn't have an <code>api.html</code>, the bundled one wins.</p>
+
+<p data-anchor="ov-mix">You can mix: keep the bundled <code>authoring.html</code> and <code>api.html</code> reachable while serving your own content for everything else. Just don't put files with the same name in your overlay.</p>
+
+<p data-anchor="ov-static">Same logic for <code>CLICKDOC_STATIC_DIR</code> if you need to override CSS or JS — useful for theming.</p>
+
+<div class="callout"><strong>Recommended layout.</strong> Keep the framework as a git submodule or a vendored copy; keep your content in your own repo. Point <code>CLICKDOC_PAGES_DIR</code> at your repo. Updates to clickdoc never touch your content.</div>
+</section>
+
+<footer class="page">clickdoc · authoring guide · MIT</footer>
+</main></div>
+<script src="/static/nav.js"></script>
+<script src="/static/annotate.js"></script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>clickdoc · API</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" id="toc">
+  <div class="group">Pages</div>
+  <a href="/pages/index.html">Welcome</a>
+  <a href="/pages/authoring.html">Author a page</a>
+  <a href="/pages/api.html">API reference</a>
+  <a href="/pages/inbox.html">Inbox</a>
+  <div class="group">On this page</div>
+  <a href="#endpoints">Endpoints</a>
+  <a href="#schema">Schema</a>
+  <a href="#env">Environment</a>
+  <a href="#deploy">Deploy recipes</a>
+</nav>
+
+<main>
+<div class="menu-toggle"><button>☰ Menu</button></div>
+
+<header class="page">
+  <div class="eyebrow">clickdoc · API reference</div>
+  <h1 data-anchor="api-title">Endpoints, schema, environment, deploy recipes</h1>
+</header>
+
+<section id="endpoints" data-anchor="endpoints">
+<h2><span class="num">1</span>Endpoints</h2>
+<table>
+<thead><tr><th>Method</th><th>Path</th><th>Body / Query</th><th>Returns</th></tr></thead>
+<tbody>
+<tr data-anchor="ep-health"><td>GET</td><td><code>/api/health</code></td><td>–</td><td><code>{"status":"ok"}</code></td></tr>
+<tr data-anchor="ep-list"><td>GET</td><td><code>/api/annotations</code></td><td>query: <code>status</code>, <code>page</code>, <code>type</code></td><td>JSON array of annotations</td></tr>
+<tr data-anchor="ep-create"><td>POST</td><td><code>/api/annotations</code></td><td>JSON body (see schema)</td><td>created annotation (201)</td></tr>
+<tr data-anchor="ep-update"><td>PATCH</td><td><code>/api/annotations/&lt;id&gt;</code></td><td>JSON: <code>{status?, response?, author?}</code></td><td>updated annotation</td></tr>
+<tr data-anchor="ep-delete"><td>DELETE</td><td><code>/api/annotations/&lt;id&gt;</code></td><td>–</td><td><code>{"deleted": id}</code></td></tr>
+<tr data-anchor="ep-feed"><td>GET</td><td><code>/api/feed</code></td><td>query: <code>status</code></td><td>plain-text feed for agents</td></tr>
+<tr data-anchor="ep-changes"><td>GET</td><td><code>/api/changes</code></td><td>query: <code>since=1h|24h|7d|30d|all</code>, <code>kind</code>, <code>limit</code></td><td>aggregated JSON timeline: annotation_created · annotation_addressed · page_edited</td></tr>
+<tr data-anchor="ep-pages"><td>GET</td><td><code>/pages/&lt;name&gt;.html</code></td><td>–</td><td>HTML, overlay first then bundled</td></tr>
+<tr data-anchor="ep-static"><td>GET</td><td><code>/static/&lt;asset&gt;</code></td><td>–</td><td>asset, overlay first then bundled</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="schema" data-anchor="schema">
+<h2><span class="num">2</span>Schema</h2>
+<pre data-anchor="schema-sql">CREATE TABLE annotations (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL,
+  author       TEXT NOT NULL DEFAULT 'anon',
+  page         TEXT NOT NULL,
+  anchor       TEXT,
+  line_excerpt TEXT,
+  type         TEXT NOT NULL CHECK(type IN ('comment','spec','precision')),
+  comment      TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','addressed')),
+  response     TEXT
+);</pre>
+
+<p data-anchor="schema-create-body"><b>POST body</b> example:</p>
+<pre>{
+  "page":    "/pages/index.html",
+  "anchor":  "feat-types",
+  "line_excerpt": "Three annotation types",
+  "type":    "spec",
+  "comment": "Route 'spec' annotations into the GitHub issue tracker"
+}</pre>
+</section>
+
+<section id="env" data-anchor="env">
+<h2><span class="num">3</span>Environment</h2>
+<table>
+<tr data-anchor="env-host"><td><code>CLICKDOC_LISTEN_HOST</code></td><td>bind address · default <code>0.0.0.0</code></td></tr>
+<tr data-anchor="env-port"><td><code>CLICKDOC_LISTEN_PORT</code></td><td>bind port · default <code>8088</code></td></tr>
+<tr data-anchor="env-db"><td><code>CLICKDOC_DB_PATH</code></td><td>SQLite file · default <code>$XDG_DATA_HOME/clickdoc/annotations.db</code></td></tr>
+<tr data-anchor="env-pages"><td><code>CLICKDOC_PAGES_DIR</code></td><td>overlay dir for pages — checked first</td></tr>
+<tr data-anchor="env-static"><td><code>CLICKDOC_STATIC_DIR</code></td><td>overlay dir for static assets — checked first</td></tr>
+<tr data-anchor="env-author"><td><code>CLICKDOC_AUTHOR</code></td><td>default author tag for new annotations · default <code>anon</code></td></tr>
+</table>
+</section>
+
+<section id="deploy" data-anchor="deploy">
+<h2><span class="num">4</span>Deploy recipes</h2>
+
+<h3 data-anchor="dep-systemd">systemd user service</h3>
+<p>Drop <code>ops/clickdoc.service</code> into <code>~/.config/systemd/user/</code> and edit the <code>WorkingDirectory</code> + the <code>CLICKDOC_PAGES_DIR</code> env to point at your content. Then:</p>
+<pre><span class="cmd">$</span> systemctl --user daemon-reload
+<span class="cmd">$</span> systemctl --user enable --now clickdoc.service
+<span class="cmd">$</span> systemctl --user status clickdoc.service</pre>
+
+<h3 data-anchor="dep-watch">Auto-reload on file change</h3>
+<p>Pair the service with <code>ops/clickdoc.path</code> which uses systemd's <code>PathChanged=</code> directive to restart the service whenever your pages or static dir changes.</p>
+
+<h3 data-anchor="dep-caddy">Caddy reverse proxy</h3>
+<pre>example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8088
+    log
+}</pre>
+
+<h3 data-anchor="dep-k8s">Kubernetes Gateway API</h3>
+<p>Expose the service running on the host through an <code>ExternalName Service</code> + <code>HTTPRoute</code>. See <code>ops/k8s/httproute.yaml</code> in the repo.</p>
+
+<h3 data-anchor="dep-docker">Docker Compose</h3>
+<pre>services:
+  clickdoc:
+    image: python:3.12-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - ./content/pages:/content/pages:ro
+      - clickdoc-data:/data
+    environment:
+      CLICKDOC_PAGES_DIR: /content/pages
+      CLICKDOC_DB_PATH: /data/annotations.db
+    command: python3 server.py
+    ports: ["8088:8088"]
+volumes:
+  clickdoc-data: {}</pre>
+</section>
+
+<footer class="page">clickdoc · API reference · MIT</footer>
+</main></div>
+<script src="/static/nav.js"></script>
+<script src="/static/annotate.js"></script>
+</body>
+</html>

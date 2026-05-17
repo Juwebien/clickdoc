@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<title>clickdoc · click-to-comment live documentation</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" id="toc">
+  <div class="group">Pages</div>
+  <a href="/pages/index.html">Welcome</a>
+  <a href="/pages/authoring.html">Author a page</a>
+  <a href="/pages/api.html">API reference</a>
+  <a href="/pages/inbox.html">Inbox</a>
+  <div class="group">Actions</div>
+  <a href="/api/feed" target="_blank">Feed (plain text)</a>
+  <a href="/api/annotations" target="_blank">JSON</a>
+</nav>
+
+<main>
+<div class="menu-toggle"><button>☰ Menu</button></div>
+
+<header class="page">
+  <div class="eyebrow">clickdoc · open source · MIT</div>
+  <h1 data-anchor="title">A doc you can click on.</h1>
+  <div class="sub" data-anchor="subtitle"><b>clickdoc</b> turns any folder of HTML pages into a documentation site where every block is annotatable in-place. Annotations live in a local SQLite file and surface through a plain-text feed any AI assistant can read.</div>
+  <div class="meta">
+    <span class="tag">stdlib only</span>
+    <span class="tag green">no dependencies</span>
+    <span class="tag violet">SQLite WAL</span>
+    <span class="tag">~600 LOC</span>
+  </div>
+</header>
+
+<section id="why" data-anchor="why">
+<h2><span class="num">1</span>Why</h2>
+<p>You write docs. People read them on their phone. They want to leave a remark without context-switching to a chat app, a Notion comment thread, or a GitHub issue. <b>clickdoc</b> lets them click on the line that bothers them and type their thought right there. The comment is stored locally and surfaced to any tool that wants to act on it — a human triager, a CI bot, or an AI coding agent running on the same machine.</p>
+
+<p data-anchor="why-shape">It is intentionally small: one Python file, one SQLite database, three JS files, one CSS file. No build step. No npm. No Docker required.</p>
+</section>
+
+<section id="features" data-anchor="features">
+<h2><span class="num">2</span>What it does</h2>
+
+<div class="card" data-anchor="feat-anchors">
+<h3>Anchor any element</h3>
+<p>Add <code>data-anchor="some-id"</code> to any HTML element. Click it → annotation panel opens, pre-loaded with the line excerpt. The annotation is bound to the anchor id so it survives page edits as long as the anchor stays.</p>
+</div>
+
+<div class="card" data-anchor="feat-types">
+<h3>Three annotation types</h3>
+<p><b>comment</b> · a free thought. <b>spec</b> · turn this into a tracked spec/issue. <b>precision</b> · please clarify the doc. The type is structured so tools can route by intent — e.g. only <code>spec</code> annotations flow into a tracker.</p>
+</div>
+
+<div class="card" data-anchor="feat-feed">
+<h3>Plain-text feed for AI agents</h3>
+<p><code>GET /api/feed</code> returns one block per open annotation. Any local AI agent (Claude Code, Codex, Cursor, Hermes profile) can <code>curl</code> the feed at session start, read the queue, address items, and <code>PATCH</code> them as resolved.</p>
+</div>
+
+<div class="card" data-anchor="feat-overlay">
+<h3>Overlay pages for any project</h3>
+<p>The server ships a default <code>pages/</code> folder. Point <code>CLICKDOC_PAGES_DIR</code> at your own folder and your pages override the defaults. Use it to keep <em>framework</em> public and <em>content</em> private. Same for <code>CLICKDOC_STATIC_DIR</code>.</p>
+</div>
+
+<div class="card" data-anchor="feat-mobile">
+<h3>Mobile-first</h3>
+<p>The TOC collapses, the floating <b>+</b> button is finger-sized, the modal panel hits the viewport edges on small screens. Made to be read from a phone while pacing.</p>
+</div>
+
+<div class="card" data-anchor="feat-deploy">
+<h3>Deploy as a systemd service or behind a Gateway</h3>
+<p>Ships with a systemd unit example, a Caddyfile, a Kubernetes Gateway API <code>HTTPRoute</code>, and a Docker Compose file. Pick your poison in <a href="/pages/api.html">api.html</a>.</p>
+</div>
+</section>
+
+<section id="quickstart" data-anchor="quickstart">
+<h2><span class="num">3</span>Quickstart</h2>
+<pre data-anchor="quick-script"><span class="cmd">$</span> git clone https://github.com/Juwebien/clickdoc
+<span class="cmd">$</span> cd clickdoc
+<span class="cmd">$</span> python3 server.py
+<span class="ok">[clickdoc] listening on http://0.0.0.0:8088</span>
+<span class="ok">[clickdoc] db:           /home/&lt;you&gt;/.local/share/clickdoc/annotations.db</span></pre>
+
+<p data-anchor="quick-open">Open <a href="http://localhost:8088">http://localhost:8088</a>. Click the title. Type something. Submit. Open <code>http://localhost:8088/api/feed</code> and watch your comment appear in plain text.</p>
+
+<p data-anchor="quick-overlay">Want your own pages instead of this welcome screen?</p>
+<pre data-anchor="quick-overlay-cmd">CLICKDOC_PAGES_DIR=$HOME/my-docs/pages python3 server.py</pre>
+
+<p data-anchor="quick-systemd">Run as a service? See <code>ops/clickdoc.service</code>, copy to <code>~/.config/systemd/user/</code>, then:</p>
+<pre data-anchor="quick-systemd-cmd"><span class="cmd">$</span> systemctl --user daemon-reload
+<span class="cmd">$</span> systemctl --user enable --now clickdoc.service</pre>
+</section>
+
+<section id="anatomy" data-anchor="anatomy">
+<h2><span class="num">4</span>Annotation anatomy</h2>
+<p data-anchor="anatomy-shape">When you click a <code>[data-anchor]</code>, the client captures:</p>
+
+<pre data-anchor="anatomy-json">{
+  <span class="kw">"page"</span>: "/pages/index.html",          <span class="note">// the URL path</span>
+  <span class="kw">"anchor"</span>: "feat-types",                <span class="note">// data-anchor attribute (optional)</span>
+  <span class="kw">"line_excerpt"</span>: "Three annotation...", <span class="note">// the clicked element's text</span>
+  <span class="kw">"type"</span>: "comment|spec|precision",      <span class="note">// the intent</span>
+  <span class="kw">"comment"</span>: "your message"               <span class="note">// what you typed</span>
+}</pre>
+
+<p data-anchor="anatomy-resp">The server stores it with timestamps, an author tag (default <code>anon</code>, override via <code>CLICKDOC_AUTHOR</code> env or the panel), and a status. AI agents PATCH the status to <code>addressed</code> with a <code>response</code> field when they act on it.</p>
+</section>
+
+<section id="security" data-anchor="security">
+<h2><span class="num">5</span>Security model — read this</h2>
+
+<div class="callout warn"><strong>clickdoc has no authentication.</strong> Treat the API as <em>trusted-LAN-only</em>. Put a reverse proxy with auth in front if you expose it beyond your machine. The default systemd unit binds <code>0.0.0.0:8088</code> — comment out that line and switch to <code>127.0.0.1</code> if you only want local access.</div>
+
+<p data-anchor="sec-secrets">Annotations are stored as plain text in SQLite. <b>Do not paste secrets</b> (tokens, keys, passwords) into the comment field — they will sit on disk unencrypted. The annotation feed at <code>/api/feed</code> is also unauthenticated.</p>
+
+<p data-anchor="sec-overlay">Page content is served as-is. If you mount an overlay dir via <code>CLICKDOC_PAGES_DIR</code>, anyone who can reach <code>:8088</code> can read those pages. If your pages contain sensitive content, gate the server behind your normal auth.</p>
+</section>
+
+<section id="next" data-anchor="next">
+<h2><span class="num">6</span>Next</h2>
+<ul>
+<li data-anchor="next-author">→ <a href="/pages/authoring.html">Author a page</a> — how to make an HTML page annotation-friendly</li>
+<li data-anchor="next-api">→ <a href="/pages/api.html">API reference</a> — every endpoint, every field, every deploy recipe</li>
+<li data-anchor="next-inbox">→ <a href="/pages/inbox.html">Inbox</a> — triage UI for the annotations you've left</li>
+</ul>
+</section>
+
+<footer class="page">clickdoc · <a href="https://github.com/Juwebien/clickdoc">github.com/Juwebien/clickdoc</a> · MIT</footer>
+</main></div>
+<script src="/static/nav.js"></script>
+<script src="/static/annotate.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# clickdoc · docker-compose example
+#
+# Run with:
+#     mkdir -p content/pages
+#     cp pages/index.html content/pages/  # or your own
+#     docker compose up -d
+#
+# Annotations DB persists in the named volume `clickdoc-data`.
+
+services:
+  clickdoc:
+    image: python:3.12-alpine
+    container_name: clickdoc
+    working_dir: /app
+    command: ["python3", "server.py"]
+    volumes:
+      - ./server.py:/app/server.py:ro
+      - ./static:/app/static:ro
+      - ./pages:/app/pages:ro
+      - ./content/pages:/content/pages:ro    # your overlay (optional)
+      - clickdoc-data:/data
+    environment:
+      CLICKDOC_LISTEN_HOST: "0.0.0.0"
+      CLICKDOC_LISTEN_PORT: "8088"
+      CLICKDOC_PAGES_DIR: /content/pages
+      CLICKDOC_DB_PATH: /data/annotations.db
+      CLICKDOC_AUTHOR: anon
+    ports:
+      - "8088:8088"
+    restart: unless-stopped
+
+volumes:
+  clickdoc-data: {}

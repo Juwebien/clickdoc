@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Lint (py_compile)
+        run: python -m py_compile server.py
+
+      - name: Smoke — boot server in background and hit /api/health
+        run: |
+          set -eux
+          export CLICKDOC_LISTEN_PORT=18088
+          export CLICKDOC_DB_PATH="$RUNNER_TEMP/test.db"
+          python server.py &
+          PID=$!
+          sleep 1
+          curl -fsS "http://127.0.0.1:18088/api/health" | grep '"status":"ok"'
+          curl -fsS "http://127.0.0.1:18088/api/annotations" | grep '^\[\]$'
+          # POST + GET round-trip
+          curl -fsS -X POST "http://127.0.0.1:18088/api/annotations" \
+            -H 'Content-Type: application/json' \
+            -d '{"page":"/x","type":"comment","comment":"ci ping"}' | grep '"id":1'
+          curl -fsS "http://127.0.0.1:18088/api/feed?status=open" | grep 'ci ping'
+          curl -fsS -X PATCH "http://127.0.0.1:18088/api/annotations/1" \
+            -H 'Content-Type: application/json' \
+            -d '{"status":"addressed","response":"ok"}' | grep '"status":"addressed"'
+          curl -fsS -X DELETE "http://127.0.0.1:18088/api/annotations/1" | grep '"deleted":1'
+          kill $PID
+
+      - name: Smoke — overlay resolution
+        run: |
+          set -eux
+          export CLICKDOC_LISTEN_PORT=18089
+          export CLICKDOC_DB_PATH="$RUNNER_TEMP/test2.db"
+          OVERLAY="$RUNNER_TEMP/overlay/pages"
+          mkdir -p "$OVERLAY"
+          echo '<!doctype html><title>OVERLAY</title><body>overlay wins</body>' > "$OVERLAY/index.html"
+          export CLICKDOC_PAGES_DIR="$OVERLAY"
+          python server.py &
+          PID=$!
+          sleep 1
+          curl -fsS "http://127.0.0.1:18089/pages/index.html" | grep 'overlay wins'
+          # bundled fallback for a page only in bundled/
+          curl -fsS "http://127.0.0.1:18089/pages/api.html" | grep 'API reference'
+          kill $PID

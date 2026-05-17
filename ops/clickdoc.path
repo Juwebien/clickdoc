@@ -1,0 +1,24 @@
+# clickdoc — auto-reload unit.
+#
+# Triggers clickdoc.service to restart whenever the watched paths change.
+# Drop alongside clickdoc.service in ~/.config/systemd/user/ then:
+#     systemctl --user daemon-reload
+#     systemctl --user enable --now clickdoc.path
+#
+# Note: PathChanged watches one path level at a time. Add a line per
+# directory you want watched. For deeply-nested content, prefer
+# committing changes (server reload on every git pull) over relying on
+# this watcher.
+
+[Unit]
+Description=Watch clickdoc pages/static and reload the service
+
+[Path]
+PathChanged=%h/clickdoc/pages
+PathChanged=%h/clickdoc/static
+# Uncomment and adjust to also watch your overlay folder(s):
+#PathChanged=%h/my-project/docs/pages
+#PathChanged=%h/my-project/docs/static
+
+[Install]
+WantedBy=default.target
